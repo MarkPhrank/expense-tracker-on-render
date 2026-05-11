@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учёт расходов</title>
+    <style>
+        :root { --bg: #f8f9fa; --card: #fff; --primary: #007bff; --danger: #dc3545; --text: #2c3e50; }
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; background: var(--bg); color: var(--text); }
+        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
+        h1, h2, h3 { margin: 0 0 1rem; }
+        form, .filters { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: end; }
+        input, button, select { padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; transition: 0.2s; }
+        button:hover { filter: brightness(0.9); }
+        button.del { background: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.7rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f1f3f5; }
+        .group-card { background: #e9ecef; padding: 1rem; border-radius: 8px; margin-bottom: 0.8rem; }
+        .export-box { margin-top: 1rem; display: flex; gap: 0.8rem; align-items: center; }
+        @media print { .no-print, form, .filters, .export-box, .del { display: none !important; } body { margin: 0; } .card { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print"><h1>💸 Учёт расходов</h1></div>
+    
+    <div class="card no-print">
+        <form id="addForm">
+            <input type="text" id="category" placeholder="Категория" required>
+            <input type="number" id="amount" step="0.01" placeholder="Сумма" required>
+            <input type="date" id="date" required>
+            <button type="submit">➕ Добавить</button>
+        </form>
+    </div>
+
+    <div class="card no-print filters">
+        <input type="date" id="fStart" placeholder="От">
+        <input type="date" id="fEnd" placeholder="До">
+        <input type="text" id="fCat" placeholder="Категория">
+        <button onclick="applyFilter()">🔍 Фильтр</button>
+        <select id="viewMode" onchange="render()">
+            <option value="list">📋 Список</option>
+            <option value="group">📊 Группировка</option>
+        </select>
+    </div>
+
+    <div class="card" id="reportArea">
+        <h2 id="reportTitle">Все расходы</h2>
+        <div id="stats" style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;"></div>
+        <div id="content"></div>
+    </div>
+
+    <div class="card no-print export-box">
+        <input type="text" id="label" placeholder="Наклейка / Заголовок отчёта" value="Отчёт по расходам">
+        <button onclick="exportExcel()">📥 Excel</button>
+        <button onclick="exportPDF()">🖨️ PDF</button>
+    </div>
+
+    <script>
+        const API = '/api/transactions';
+        let data = [];
+
+        async function loadData(url = API) {
+            try {
+                const res = await fetch(url);
+                data = await res.json();
+                render();
+            } catch (e) { alert('Ошибка загрузки: ' + e.message); }
+        }
+
+        function render() {
+            const mode = document.getElementById('viewMode').value;
+            const title = document.getElementById('reportTitle');
+            const content = document.getElementById('content');
+            const stats = document.getElementById('stats');
+            
+            if (data.length === 0) {
+                content.innerHTML = '<p style="color:#666">Нет данных</p>';
+                stats.innerHTML = '';
+                title.textContent = document.getElementById('label').value || 'Отчёт';
+                return;
+            }
+
+            const sum = data.reduce((a, b) => a + b.amount, 0);
+            stats.innerHTML = `
+                <div class="group-card"><b>Всего:</b> ${sum.toFixed(2)} ₽</div>
+                <div class="group-card"><b>Записей:</b> ${data.length}</div>
+            `;
+
+            if (mode === 'group') {
+                const groups = {};
+                data.forEach(t => { groups[t.category] = (groups[t.category] || 0) + t.amount; });
+                content.innerHTML = Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([cat, sum]) => `
+                    <div class="group-card"><b>${cat}</b>: ${sum.toFixed(2)} ₽</div>
+                `).join('');
+            } else {
+                content.innerHTML = `
+                <table><thead><tr><th>Дата</th><th>Категория</th><th>Сумма</th><th class="no-print">Действие</th></tr></thead>
+                <tbody>${data.map(t => `
+                    <tr><td>${t.date}</td><td>${t.category}</td><td>${t.amount.toFixed(2)} ₽</td>
+                    <td class="no-print"><button class="del" onclick="deleteTx(${t.id})">🗑️</button></td></tr>
+                `).join('')}</tbody></table>`;
+            }
+            title.textContent = document.getElementById('label').value || 'Отчёт';
+        }
+
+        async function applyFilter() {
+            const s = document.getElementById('fStart').value;
+            const e = document.getElementById('fEnd').value;
+            const c = document.getElementById('fCat').value;
+            const q = new URLSearchParams({ start: s, end: e, category: c }).toString();
+            loadData(API + '/filter?' + q);
+        }
+
+        async function deleteTx(id) {
+            if (!confirm('Удалить запись?')) return;
+            await fetch(API + '/' + id, { method: 'DELETE' });
+            loadData();
+        }
+
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                category: document.getElementById('category').value,
+                amount: parseFloat(document.getElementById('amount').value),
+                date: document.getElementById('date').value
+            };
+            await fetch(API, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            e.target.reset(); loadData();
+        });
+
+        // Экспорт без библиотек
+        function exportExcel() {
+            let csv = 'Дата\tКатегория\tСумма\n';
+            data.forEach(t => csv += `${t.date}\t${t.category}\t${t.amount}\n`);
+            const blob = new Blob(['\ufeff' + csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = (document.getElementById('label').value || 'export') + '.xls';
+            a.click();
+        }
+
+        function exportPDF() {
+            document.getElementById('label').focus();
+            setTimeout(() => window.print(), 100);
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
