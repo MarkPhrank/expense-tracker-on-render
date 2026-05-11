@@ -23,11 +23,28 @@ public class DatabaseManager {
         String sql = "INSERT INTO transactions (category, amount, txn_date) VALUES (?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, t.category); ps.setDouble(2, t.amount); ps.setDate(3, Date.valueOf(t.date));
-            ps.executeUpdate();
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) t.id = rs.getInt(1);
-        } catch (SQLException e) { System.err.println("❌ Ошибка БД: " + e.getMessage()); }
+            
+            System.out.println("💾 Attempting to save: " + t.category + " / " + t.amount + " / " + t.date);
+            
+            ps.setString(1, t.category);
+            ps.setDouble(2, t.amount);
+            ps.setDate(3, Date.valueOf(t.date));
+            
+            int rows = ps.executeUpdate();
+            System.out.println("💾 Rows affected: " + rows);
+            
+            if (rows > 0) {
+                ResultSet rs = ps.getGeneratedKeys();
+                if (rs.next()) {
+                    t.id = rs.getInt(1);
+                    System.out.println("💾 Generated ID: " + t.id);
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Ошибка БД: " + e.getMessage());
+            e.printStackTrace(); // 🔥 Полный стектрейс в логи Render
+        }
     }
 
     public static List<Transaction> loadAll() { return query("SELECT id, category, amount, txn_date FROM transactions ORDER BY txn_date DESC", null); }
