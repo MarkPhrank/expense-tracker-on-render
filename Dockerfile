@@ -1,5 +1,6 @@
 # ========== СТАДИЯ 1: Сборка (Maven + JDK) ==========
-FROM eclipse-temurin:17-jdk-alpine AS builder
+# Используем образ с предустановленным Maven
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /build
 
