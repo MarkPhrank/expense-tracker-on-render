@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY,
+    category VARCHAR(50) NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    txn_date DATE NOT NULL
+);
