@@ -21,6 +21,7 @@ public class DatabaseManager {
     }
 
     public static void save(Transaction t) {
+        ensureTableExists();
         String sql = "INSERT INTO transactions (category, amount, txn_date) VALUES (?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
