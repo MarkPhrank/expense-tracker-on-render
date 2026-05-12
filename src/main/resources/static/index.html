@@ -85,23 +85,36 @@
     <!-- 🔥 ОДИН скрипт, всё внутри -->
     <script>
         // === 🔐 АВТОРИЗАЦИЯ ===
-        let isRegisterMode = true;
+        let authMode = 'register'; // 'register' или 'login'
         let token = localStorage.getItem('expense_token');
         let currentUser = localStorage.getItem('expense_user');
-
-        function toggleMode() {
-            isRegisterMode = !isRegisterMode;
-            const btn = document.getElementById('authBtn');
-            if (btn) btn.textContent = isRegisterMode ? 'Войти / Регистрация' : 'Войти';
+        
+        function setMode(mode) {
+            authMode = mode;
+            const submitBtn = document.getElementById('submitBtn');
+            const btnRegister = document.getElementById('btnRegister');
+            const btnLogin = document.getElementById('btnLogin');
+            
+            if (mode === 'register') {
+                submitBtn.textContent = '📝 Зарегистрироваться';
+                submitBtn.style.background = '#28a745';
+                if (btnRegister) btnRegister.style.opacity = '1';
+                if (btnLogin) btnLogin.style.opacity = '0.7';
+            } else {
+                submitBtn.textContent = '🔑 Войти';
+                submitBtn.style.background = '#007bff';
+                if (btnRegister) btnRegister.style.opacity = '0.7';
+                if (btnLogin) btnLogin.style.opacity = '1';
+            }
         }
-
+        
         function logout() {
             localStorage.removeItem('expense_token');
             localStorage.removeItem('expense_user');
             token = null; currentUser = null;
             location.reload();
         }
-
+        
         // Перехват fetch для добавления токена
         const originalFetch = window.fetch;
         window.fetch = function(url, options = {}) {
@@ -110,15 +123,21 @@
             }
             return originalFetch(url, options);
         };
-
-        // Обработка формы авторизации
-        const authForm = document.getElementById('authForm');
-        if (authForm) {
-            authForm.addEventListener('submit', async (e) => {
+        
+        // Обработка формы
+        const credentialsForm = document.getElementById('credentialsForm');
+        if (credentialsForm) {
+            credentialsForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const username = document.getElementById('regUsername').value;
+                const username = document.getElementById('regUsername').value.trim();
                 const password = document.getElementById('regPassword').value;
-                const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+                
+                if (username.length < 3 || password.length < 6) {
+                    document.getElementById('authError').textContent = 'Логин ≥ 3 символов, пароль ≥ 6';
+                    return;
+                }
+                
+                const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
                 try {
                     const res = await fetch(endpoint, {
                         method: 'POST',
@@ -126,27 +145,34 @@
                         body: JSON.stringify({username, password})
                     });
                     const data = await res.json();
+                    
                     if (data.success && data.token) {
-                        token = data.token; currentUser = data.username;
+                        // Успешный вход/регистрация
+                        token = data.token;
+                        currentUser = data.username;
                         localStorage.setItem('expense_token', token);
                         localStorage.setItem('expense_user', currentUser);
+                        
                         document.getElementById('authSection').style.display = 'none';
                         document.getElementById('userInfo').style.display = 'block';
                         document.getElementById('currentUsername').textContent = currentUser;
                         document.getElementById('authError').textContent = '';
+                        
+                        // Показываем интерфейс
                         document.querySelectorAll('.no-print').forEach(el => {
                             if (el.id !== 'authSection') el.style.display = '';
                         });
                         if (typeof loadData === 'function') loadData();
                     } else {
-                        document.getElementById('authError').textContent = data.error || 'Ошибка';
+                        document.getElementById('authError').textContent = 
+                            authMode === 'register' ? 'Пользователь уже существует' : 'Неверный логин или пароль';
                     }
                 } catch (err) {
                     document.getElementById('authError').textContent = 'Сервер недоступен';
                 }
             });
         }
-
+        
         // Проверка токена при загрузке
         if (token && currentUser) {
             setTimeout(() => {
@@ -164,6 +190,7 @@
                 if (typeof loadData === 'function') loadData();
             }, 100);
         }
+        // === 🔐 КОНЕЦ АВТОРИЗАЦИИ ===
 
         // === 📦 ОСНОВНОЙ КОД ПРИЛОЖЕНИЯ ===
         const API = '/api/transactions';
