@@ -17,7 +17,9 @@ public class TransactionController {
     
     // POST /api/transactions → добавить новый
     @PostMapping
-    public Transaction create(@RequestBody Transaction t) {
+    public Transaction create(@RequestBody Transaction t, HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        // 🔥 Здесь можно добавить поле user_id в Transaction и БД
         DatabaseManager.save(t);
         return t;
     }
