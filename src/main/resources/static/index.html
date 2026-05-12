@@ -146,8 +146,8 @@
                     });
                     const data = await res.json();
                     
-                    if (data.success && data.token) {
-                        // Успешный вход/регистрация
+                    if (data.success && data.token && data.username) {
+                        // ✅ Только если сервер вернул токен И имя — считаем вход успешным
                         token = data.token;
                         currentUser = data.username;
                         localStorage.setItem('expense_token', token);
@@ -158,14 +158,15 @@
                         document.getElementById('currentUsername').textContent = currentUser;
                         document.getElementById('authError').textContent = '';
                         
-                        // Показываем интерфейс
                         document.querySelectorAll('.no-print').forEach(el => {
                             if (el.id !== 'authSection') el.style.display = '';
                         });
                         if (typeof loadData === 'function') loadData();
                     } else {
-                        document.getElementById('authError').textContent = 
-                            authMode === 'register' ? 'Пользователь уже существует' : 'Неверный логин или пароль';
+                        // ❌ Ошибка — показываем сообщение из сервера или дефолтное
+                        const msg = data.error || (authMode === 'register' ? 'Пользователь уже существует' : 'Неверный логин или пароль');
+                        document.getElementById('authError').textContent = msg;
+                        console.error('Auth failed:', data);
                     }
                 } catch (err) {
                     document.getElementById('authError').textContent = 'Сервер недоступен';
