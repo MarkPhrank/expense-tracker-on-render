@@ -11,7 +11,9 @@ public class TransactionController {
     
     // GET /api/transactions → список всех расходов
     @GetMapping
-    public List<Transaction> getAll() {
+    public List<Transaction> getAll(HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        // 🔥 Здесь можно добавить фильтр: DatabaseManager.loadByUserId(userId)
         return DatabaseManager.loadAll();
     }
     
