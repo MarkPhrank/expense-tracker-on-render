@@ -25,14 +25,12 @@
 <body>
     <div class="no-print"><h1>💸 Учёт расходов</h1></div>
 
-    
     <!-- 🔐 Блок авторизации -->
     <div class="card no-print" id="authSection">
         <div id="userInfo" style="display:none; margin-bottom:1rem;">
             👤 <span id="currentUsername"></span> 
             <button onclick="logout()" style="margin-left:1rem; padding:0.3rem 0.8rem;">Выйти</button>
         </div>
-        
         <form id="authForm" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
             <input type="text" id="regUsername" placeholder="Логин" required style="flex:1; min-width:120px;">
             <input type="password" id="regPassword" placeholder="Пароль" required style="flex:1; min-width:120px;">
@@ -41,96 +39,6 @@
         </form>
         <div id="authError" style="color:#dc3545; margin-top:0.5rem;"></div>
     </div>
-    
-    <script>
-    // 🔐 Глобальные переменные
-    let isRegisterMode = true;
-    let token = localStorage.getItem('expense_token');
-    let currentUser = localStorage.getItem('expense_user');
-    
-    // Проверка токена при загрузке
-    if (token && currentUser) {
-        document.getElementById('authSection').style.display = 'none';
-        document.getElementById('userInfo').style.display = 'block';
-        document.getElementById('currentUsername').textContent = currentUser;
-        document.querySelectorAll('.no-print').forEach(el => {
-            if (el.id !== 'authSection') el.style.display = '';
-        });
-        loadData();
-    }
-    
-    // Переключение вход/регистрация
-    function toggleMode() {
-        isRegisterMode = !isRegisterMode;
-        document.getElementById('authBtn').textContent = isRegisterMode ? 'Войти / Регистрация' : 'Войти';
-    }
-    
-    // Обработка формы авторизации
-    document.getElementById('authForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('regUsername').value;
-        const password = document.getElementById('regPassword').value;
-        const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
-        
-        try {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            const data = await res.json();
-            
-            if (data.success && data.token) {
-                // Успешный вход
-                token = data.token;
-                currentUser = data.username;
-                localStorage.setItem('expense_token', token);
-                localStorage.setItem('expense_user', currentUser);
-                
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('userInfo').style.display = 'block';
-                document.getElementById('currentUsername').textContent = currentUser;
-                document.getElementById('authError').textContent = '';
-                
-                // Показываем интерфейс
-                document.querySelectorAll('.no-print').forEach(el => {
-                    if (el.id !== 'authSection') el.style.display = '';
-                });
-                loadData();
-            } else {
-                document.getElementById('authError').textContent = data.error || 'Ошибка';
-            }
-        } catch (err) {
-            document.getElementById('authError').textContent = 'Сервер недоступен';
-        }
-    });
-    
-    // Выход
-    function logout() {
-        localStorage.removeItem('expense_token');
-        localStorage.removeItem('expense_user');
-        token = null;
-        currentUser = null;
-        location.reload();
-    }
-    
-    // 🔐 Добавляем токен ко всем запросам
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options = {}) {
-        if (token && url.startsWith('/api/') && !url.startsWith('/api/auth')) {
-            options.headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
-            };
-        }
-        return originalFetch(url, options);
-    };
-    </script>
-
-
-
-
-
     
     <div class="card no-print">
         <form id="addForm">
@@ -164,59 +72,143 @@
         <button onclick="exportPDF()">🖨️ PDF</button>
     </div>
 
+    <!-- 🔥 ОДИН скрипт, всё внутри -->
     <script>
+        // === 🔐 АВТОРИЗАЦИЯ ===
+        let isRegisterMode = true;
+        let token = localStorage.getItem('expense_token');
+        let currentUser = localStorage.getItem('expense_user');
+
+        function toggleMode() {
+            isRegisterMode = !isRegisterMode;
+            const btn = document.getElementById('authBtn');
+            if (btn) btn.textContent = isRegisterMode ? 'Войти / Регистрация' : 'Войти';
+        }
+
+        function logout() {
+            localStorage.removeItem('expense_token');
+            localStorage.removeItem('expense_user');
+            token = null; currentUser = null;
+            location.reload();
+        }
+
+        // Перехват fetch для добавления токена
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            if (token && url.startsWith('/api/') && !url.startsWith('/api/auth')) {
+                options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            }
+            return originalFetch(url, options);
+        };
+
+        // Обработка формы авторизации
+        const authForm = document.getElementById('authForm');
+        if (authForm) {
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('regUsername').value;
+                const password = document.getElementById('regPassword').value;
+                const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+                try {
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({username, password})
+                    });
+                    const data = await res.json();
+                    if (data.success && data.token) {
+                        token = data.token; currentUser = data.username;
+                        localStorage.setItem('expense_token', token);
+                        localStorage.setItem('expense_user', currentUser);
+                        document.getElementById('authSection').style.display = 'none';
+                        document.getElementById('userInfo').style.display = 'block';
+                        document.getElementById('currentUsername').textContent = currentUser;
+                        document.getElementById('authError').textContent = '';
+                        document.querySelectorAll('.no-print').forEach(el => {
+                            if (el.id !== 'authSection') el.style.display = '';
+                        });
+                        if (typeof loadData === 'function') loadData();
+                    } else {
+                        document.getElementById('authError').textContent = data.error || 'Ошибка';
+                    }
+                } catch (err) {
+                    document.getElementById('authError').textContent = 'Сервер недоступен';
+                }
+            });
+        }
+
+        // Проверка токена при загрузке
+        if (token && currentUser) {
+            setTimeout(() => {
+                const authSec = document.getElementById('authSection');
+                const userInfo = document.getElementById('userInfo');
+                const currentUsername = document.getElementById('currentUsername');
+                if (authSec && userInfo && currentUsername) {
+                    authSec.style.display = 'none';
+                    userInfo.style.display = 'block';
+                    currentUsername.textContent = currentUser;
+                    document.querySelectorAll('.no-print').forEach(el => {
+                        if (el.id !== 'authSection') el.style.display = '';
+                    });
+                }
+                if (typeof loadData === 'function') loadData();
+            }, 100);
+        }
+
+        // === 📦 ОСНОВНОЙ КОД ПРИЛОЖЕНИЯ ===
         const API = '/api/transactions';
         let data = [];
 
         async function loadData(url = API) {
             try {
                 const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 data = await res.json();
                 render();
-            } catch (e) { alert('Ошибка загрузки: ' + e.message); }
+            } catch (e) { console.error('Load error:', e); }
         }
 
         function render() {
-            const mode = document.getElementById('viewMode').value;
-            const title = document.getElementById('reportTitle');
-            const content = document.getElementById('content');
-            const stats = document.getElementById('stats');
-            
+            const modeEl = document.getElementById('viewMode');
+            const titleEl = document.getElementById('reportTitle');
+            const contentEl = document.getElementById('content');
+            const statsEl = document.getElementById('stats');
+            const labelEl = document.getElementById('label');
+            if (!modeEl || !titleEl || !contentEl || !statsEl) return;
+
+            const mode = modeEl.value;
             if (data.length === 0) {
-                content.innerHTML = '<p style="color:#666">Нет данных</p>';
-                stats.innerHTML = '';
-                title.textContent = document.getElementById('label').value || 'Отчёт';
+                contentEl.innerHTML = '<p style="color:#666">Нет данных</p>';
+                statsEl.innerHTML = '';
+                titleEl.textContent = (labelEl ? labelEl.value : 'Отчёт') || 'Отчёт';
                 return;
             }
-
             const sum = data.reduce((a, b) => a + b.amount, 0);
-            stats.innerHTML = `
+            statsEl.innerHTML = `
                 <div class="group-card"><b>Всего:</b> ${sum.toFixed(2)} ₽</div>
-                <div class="group-card"><b>Записей:</b> ${data.length}</div>
-            `;
+                <div class="group-card"><b>Записей:</b> ${data.length}</div>`;
 
             if (mode === 'group') {
                 const groups = {};
                 data.forEach(t => { groups[t.category] = (groups[t.category] || 0) + t.amount; });
-                content.innerHTML = Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([cat, sum]) => `
-                    <div class="group-card"><b>${cat}</b>: ${sum.toFixed(2)} ₽</div>
-                `).join('');
+                contentEl.innerHTML = Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([cat, s]) =>
+                    `<div class="group-card"><b>${cat}</b>: ${s.toFixed(2)} ₽</div>`).join('');
             } else {
-                content.innerHTML = `
+                contentEl.innerHTML = `
                 <table><thead><tr><th>Дата</th><th>Категория</th><th>Сумма</th><th class="no-print">Действие</th></tr></thead>
                 <tbody>${data.map(t => `
                     <tr><td>${t.date}</td><td>${t.category}</td><td>${t.amount.toFixed(2)} ₽</td>
                     <td class="no-print"><button class="del" onclick="deleteTx(${t.id})">🗑️</button></td></tr>
                 `).join('')}</tbody></table>`;
             }
-            title.textContent = document.getElementById('label').value || 'Отчёт';
+            if (titleEl) titleEl.textContent = (labelEl ? labelEl.value : 'Отчёт') || 'Отчёт';
         }
 
         async function applyFilter() {
-            const s = document.getElementById('fStart').value;
-            const e = document.getElementById('fEnd').value;
-            const c = document.getElementById('fCat').value;
-            const q = new URLSearchParams({ start: s, end: e, category: c }).toString();
+            const s = document.getElementById('fStart')?.value || '';
+            const e = document.getElementById('fEnd')?.value || '';
+            const c = document.getElementById('fCat')?.value || '';
+            const q = new URLSearchParams({start:s, end:e, category:c}).toString();
             loadData(API + '/filter?' + q);
         }
 
@@ -226,33 +218,50 @@
             loadData();
         }
 
-        document.getElementById('addForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                category: document.getElementById('category').value,
-                amount: parseFloat(document.getElementById('amount').value),
-                date: document.getElementById('date').value
-            };
-            await fetch(API, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            e.target.reset(); loadData();
-        });
+        const addForm = document.getElementById('addForm');
+        if (addForm) {
+            addForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const payload = {
+                    category: document.getElementById('category').value,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    date: document.getElementById('date').value
+                };
+                await fetch(API, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                e.target.reset();
+                loadData();
+            });
+        }
 
-        // Экспорт без библиотек
         function exportExcel() {
             let csv = 'Дата\tКатегория\tСумма\n';
             data.forEach(t => csv += `${t.date}\t${t.category}\t${t.amount}\n`);
-            const blob = new Blob(['\ufeff' + csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = (document.getElementById('label').value || 'export') + '.xls';
+            const blob = new Blob(['\ufeff' + csv], {type: 'application/vnd.ms-excel;charset=utf-8'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = (document.getElementById('label')?.value || 'export') + '.xls';
             a.click();
         }
 
         function exportPDF() {
-            document.getElementById('label').focus();
+            const label = document.getElementById('label');
+            if (label) label.focus();
             setTimeout(() => window.print(), 100);
         }
 
-        loadData();
+        // Финальная инициализация: если не авторизован — скрываем интерфейс
+        if (!token || !currentUser) {
+            document.querySelectorAll('.no-print').forEach(el => {
+                if (el.id !== 'authSection') el.style.display = 'none';
+            });
+        } else {
+            // Если авторизован — сразу грузим данные
+            loadData();
+        }
     </script>
 </body>
 </html>
