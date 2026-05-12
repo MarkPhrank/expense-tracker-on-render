@@ -31,16 +31,43 @@ public class UserManager {
     // Регистрация: хешируем пароль перед сохранением
     public static boolean register(String username, String rawPassword) {
         initTable();
+        
+        // 🔥 Проверка: если пользователь уже есть — возвращаем false
+        if (findByUsername(username).isPresent()) {
+            System.out.println("⚠️ User already exists: " + username);
+            return false;
+        }
+        
         String hash = BCrypt.hashpw(rawPassword, BCrypt.gensalt(12));
         String sql = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, hash);
-            return ps.executeUpdate() > 0;
+            int rows = ps.executeUpdate();
+            System.out.println("✅ Registered: " + username + " (rows=" + rows + ")");
+            return rows > 0;
         } catch (SQLException e) {
-            return false; // пользователь уже существует или ошибка БД
+            System.err.println("❌ Register error: " + e.getMessage());
+            return false;
         }
+    }
+    
+    // 🔥 Новый метод: поиск по имени
+    public static Optional<User> findByUsername(String username) {
+        initTable();
+        String sql = "SELECT id, username, password_hash FROM users WHERE username = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                User u = new User(rs.getString("username"), rs.getString("password_hash"));
+                u.id = rs.getInt("id");
+                return Optional.of(u);
+            }
+        } catch (SQLException e) { /* ignore */ }
+        return Optional.empty();
     }
 
     // Проверка логина: сравниваем хеши
