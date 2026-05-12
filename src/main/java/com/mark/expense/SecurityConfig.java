@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
@@ -12,29 +13,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 🔥 Отключаем стандартный вход Spring Security
+            // 🔥 ОТКЛЮЧАЕМ ВСЕ СТАНДАРТНЫЕ МЕХАНИЗМЫ SPRING SECURITY
+            .csrf(csrf -> csrf.disable())
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .logout(logout -> logout.disable())
+            .sessionManagement(session -> session.disable())
+            .rememberMe(r -> r.disable())
+            .requestCache(cache -> cache.disable())
             
-            // 🔥 Разрешаем доступ к статике и API авторизации без токена
+            // 🔥 РАЗРЕШАЕМ ДОСТУП К ПУБЛИЧНЫМ РЕСУРСАМ
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/static/**", "/api/auth/**").permitAll()
-                .anyRequest().authenticated() // Остальные запросы — только с токеном
+                .requestMatchers("/", "/index.html", "/static/**", 
+                               "*.css", "*.js", "*.png", "*.jpg", "*.ico", "*.svg",
+                               "/api/auth/**").permitAll()
+                .anyRequest().authenticated()
             )
             
-            // 🔥 Отключаем CSRF для API
-            .csrf(csrf -> csrf.disable());
+            // 🔥 ДОБАВЛЯЕМ НАШ ФИЛЬТР ПЕРЕД СТАНДАРТНЫМИ
+            .addFilterBefore(jwtAuthFilter(), UsernamePasswordAuthenticationFilter.class);
             
         return http.build();
     }
 
     @Bean
-    public FilterRegistrationBean<JwtAuthFilter> jwtFilter() {
-        FilterRegistrationBean<JwtAuthFilter> reg = new FilterRegistrationBean<>();
-        reg.setFilter(new JwtAuthFilter());
-        reg.addUrlPatterns("/api/*");
-        reg.setOrder(1);
-        return reg;
+    public JwtAuthFilter jwtAuthFilter() {
+        return new JwtAuthFilter();
+    }
+
+    // 🔥 ЗАГЛУШКА: отключаем создание дефолтного UserDetailsService
+    @Bean
+    public org.springframework.security.core.userdetails.UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UnsupportedOperationException("JWT only - use /api/auth/login");
+        };
     }
 }
