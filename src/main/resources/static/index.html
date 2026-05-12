@@ -29,15 +29,25 @@
     <div class="card no-print" id="authSection">
         <div id="userInfo" style="display:none; margin-bottom:1rem;">
             👤 <span id="currentUsername"></span> 
-            <button onclick="logout()" style="margin-left:1rem; padding:0.3rem 0.8rem;">Выйти</button>
+            <button onclick="logout()" style="margin-left:1rem; padding:0.3rem 0.8rem; background:#6c757d;">Выйти</button>
         </div>
-        <form id="authForm" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <input type="text" id="regUsername" placeholder="Логин" required style="flex:1; min-width:120px;">
-            <input type="password" id="regPassword" placeholder="Пароль" required style="flex:1; min-width:120px;">
-            <button type="submit" id="authBtn">Войти / Регистрация</button>
-            <button type="button" onclick="toggleMode()" style="background:#6c757d;">Сменить режим</button>
-        </form>
-        <div id="authError" style="color:#dc3545; margin-top:0.5rem;"></div>
+        
+        <div id="authForm">
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
+                <button type="button" id="btnRegister" onclick="setMode('register')" style="flex:1; background:#28a745;">📝 Регистрация</button>
+                <button type="button" id="btnLogin" onclick="setMode('login')" style="flex:1; background:#007bff;">🔑 Вход</button>
+            </div>
+            
+            <form id="credentialsForm" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <input type="text" id="regUsername" placeholder="Логин" required style="flex:1; min-width:120px;">
+                <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)" required style="flex:1; min-width:120px;">
+                <button type="submit" id="submitBtn" style="background:#007bff;">Зарегистрироваться</button>
+            </form>
+            <div id="authError" style="color:#dc3545; margin-top:0.5rem; font-size:0.9rem;"></div>
+            <div id="authHint" style="color:#6c757d; margin-top:0.3rem; font-size:0.85rem;">
+                При регистрации создаётся личный счёт. Пароль хранится в зашифрованном виде.
+            </div>
+        </div>
     </div>
     
     <div class="card no-print">
