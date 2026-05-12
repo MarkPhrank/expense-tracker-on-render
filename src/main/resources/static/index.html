@@ -129,6 +129,17 @@
         if (credentialsForm) {
             credentialsForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                // 🔥 Проверка ввода перед запросом
+                if (!username || username.length < 3) {
+                    document.getElementById('authError').textContent = 'Логин должен быть ≥ 3 символов';
+                    return;
+                }
+                if (!password || password.length < 6) {
+                    document.getElementById('authError').textContent = 'Пароль должен быть ≥ 6 символов';
+                    return;
+                }
+                
                 const username = document.getElementById('regUsername').value.trim();
                 const password = document.getElementById('regPassword').value;
                 
