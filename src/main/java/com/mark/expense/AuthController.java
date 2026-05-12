@@ -9,11 +9,18 @@ public class AuthController {
 
     @PostMapping("/register")
     public Map<String, Object> register(@RequestBody AuthRequest req) {
-        if (req.username == null || req.password == null || req.username.isBlank()) {
-            return Map.of("success", false, "error", "Invalid input");
+        if (req.username == null || req.username.isBlank() || req.password == null || req.password.length() < 6) {
+            return Map.of("success", false, "error", "Username ≥3 chars, password ≥6 chars");
         }
         boolean ok = UserManager.register(req.username, req.password);
-        return ok ? Map.of("success", true) : Map.of("success", false, "error", "User exists");
+        if (ok) {
+            var userOpt = UserManager.findByUsername(req.username);
+            if (userOpt.isPresent()) {
+                String token = JwtUtil.generateToken(userOpt.get());
+                return Map.of("success", true, "token", token, "username", req.username);
+            }
+        }
+        return Map.of("success", false, "error", "Registration failed (user may exist)");
     }
 
     @PostMapping("/login")
@@ -23,7 +30,7 @@ public class AuthController {
             String token = JwtUtil.generateToken(userOpt.get());
             return Map.of("success", true, "token", token, "username", userOpt.get().username);
         }
-        return Map.of("success", false, "error", "Invalid credentials");
+        return Map.of("success", false, "error", "Invalid username or password");
     }
 
     // Внутренний класс для запроса
