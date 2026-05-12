@@ -24,6 +24,113 @@
 </head>
 <body>
     <div class="no-print"><h1>💸 Учёт расходов</h1></div>
+
+    
+    <!-- 🔐 Блок авторизации -->
+    <div class="card no-print" id="authSection">
+        <div id="userInfo" style="display:none; margin-bottom:1rem;">
+            👤 <span id="currentUsername"></span> 
+            <button onclick="logout()" style="margin-left:1rem; padding:0.3rem 0.8rem;">Выйти</button>
+        </div>
+        
+        <form id="authForm" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <input type="text" id="regUsername" placeholder="Логин" required style="flex:1; min-width:120px;">
+            <input type="password" id="regPassword" placeholder="Пароль" required style="flex:1; min-width:120px;">
+            <button type="submit" id="authBtn">Войти / Регистрация</button>
+            <button type="button" onclick="toggleMode()" style="background:#6c757d;">Сменить режим</button>
+        </form>
+        <div id="authError" style="color:#dc3545; margin-top:0.5rem;"></div>
+    </div>
+    
+    <script>
+    // 🔐 Глобальные переменные
+    let isRegisterMode = true;
+    let token = localStorage.getItem('expense_token');
+    let currentUser = localStorage.getItem('expense_user');
+    
+    // Проверка токена при загрузке
+    if (token && currentUser) {
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'block';
+        document.getElementById('currentUsername').textContent = currentUser;
+        document.querySelectorAll('.no-print').forEach(el => {
+            if (el.id !== 'authSection') el.style.display = '';
+        });
+        loadData();
+    }
+    
+    // Переключение вход/регистрация
+    function toggleMode() {
+        isRegisterMode = !isRegisterMode;
+        document.getElementById('authBtn').textContent = isRegisterMode ? 'Войти / Регистрация' : 'Войти';
+    }
+    
+    // Обработка формы авторизации
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('regUsername').value;
+        const password = document.getElementById('regPassword').value;
+        const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+        
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const data = await res.json();
+            
+            if (data.success && data.token) {
+                // Успешный вход
+                token = data.token;
+                currentUser = data.username;
+                localStorage.setItem('expense_token', token);
+                localStorage.setItem('expense_user', currentUser);
+                
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('userInfo').style.display = 'block';
+                document.getElementById('currentUsername').textContent = currentUser;
+                document.getElementById('authError').textContent = '';
+                
+                // Показываем интерфейс
+                document.querySelectorAll('.no-print').forEach(el => {
+                    if (el.id !== 'authSection') el.style.display = '';
+                });
+                loadData();
+            } else {
+                document.getElementById('authError').textContent = data.error || 'Ошибка';
+            }
+        } catch (err) {
+            document.getElementById('authError').textContent = 'Сервер недоступен';
+        }
+    });
+    
+    // Выход
+    function logout() {
+        localStorage.removeItem('expense_token');
+        localStorage.removeItem('expense_user');
+        token = null;
+        currentUser = null;
+        location.reload();
+    }
+    
+    // 🔐 Добавляем токен ко всем запросам
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+        if (token && url.startsWith('/api/') && !url.startsWith('/api/auth')) {
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+        }
+        return originalFetch(url, options);
+    };
+    </script>
+
+
+
+
+
     
     <div class="card no-print">
         <form id="addForm">
