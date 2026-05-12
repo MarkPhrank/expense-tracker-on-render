@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DatabaseManager {
+    private static volatile boolean tableInitialized = false;
     private static final String URL = System.getenv("JDBC_URL") != null ?
         System.getenv("JDBC_URL") :
         "jdbc:postgresql://localhost:5432/expense_db";
@@ -89,4 +90,25 @@ public class DatabaseManager {
         }
         return list;
     }
+
+
+    private static void ensureTableExists() {
+        if (tableInitialized) return;
+        String sql = "CREATE TABLE IF NOT EXISTS transactions (" +
+                     "id SERIAL PRIMARY KEY, " +
+                     "category VARCHAR(50) NOT NULL, " +
+                     "amount DOUBLE PRECISION NOT NULL, " +
+                     "txn_date DATE NOT NULL)";
+        try (Connection conn = getConnection();
+             java.sql.Statement st = conn.createStatement()) {
+            st.execute(sql);
+            tableInitialized = true;
+            System.out.println("✅ Table 'transactions' created or already exists");
+        } catch (SQLException e) {
+            // Таблица уже есть или другая ошибка — игнорируем
+        }
+    }
+
+    
+    
 }
